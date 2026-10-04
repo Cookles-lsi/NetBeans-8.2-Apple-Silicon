@@ -23,17 +23,21 @@ set -euo pipefail
 NB_URL="https://dlc-cdn.sun.com/netbeans/8.2/final/zip/netbeans-8.2-201609300101-javase.zip"
 NB_SHA256="cf6f94517faa5dbedede4b8a7a6e6d5a65ca931eeae3809245ba7321bf539aea"
 
-# Azul Zulu JDK 8 compilado para ARM64 (macOS aarch64). Versión fija y verificada.
-ZULU_URL="https://cdn.azul.com/zulu/bin/zulu8.96.0.205-ca-jdk8.0.504-macosx_aarch64.tar.gz"
-ZULU_SHA256="58bb3c08f2aa63d9743cf31899fa4b8c6c9effefce9479e7288c26621c3bb21b"
+# Azul Zulu JDK 8 con JavaFX incluido, compilado para ARM64 (macOS aarch64).
+# Versión fija y verificada.
+ZULU_URL="https://cdn.azul.com/zulu/bin/zulu8.96.0.205-ca-fx-jdk8.0.504-macosx_aarch64.tar.gz"
+ZULU_SHA256="300feca3a32385d5181021c30ffd88aeaa392c83e21565ca72759f73f26d8770"
 
 # --- Dónde se instala (todo dentro de tu usuario, no pide contraseña) --------
 
 NB_DIR="$HOME/Applications/netbeans-8.2"
 APP_DIR="$HOME/Applications/NetBeans 8.2.app"
 JVM_DIR="$HOME/Library/Java/JavaVirtualMachines"
-ZULU_DIR="$JVM_DIR/zulu-8.jdk"
-ZULU_MARK="$ZULU_DIR/.instalado-por-netbeans-8.2-apple-silicon"
+ZULU_DIR="$JVM_DIR/zulu-8-fx.jdk"
+MARCA=".instalado-por-netbeans-8.2-apple-silicon"
+ZULU_MARK="$ZULU_DIR/$MARCA"
+# Carpeta que usaba la primera versión del script (JDK sin JavaFX).
+ZULU_DIR_VIEJO="$JVM_DIR/zulu-8.jdk"
 ZSHRC="$HOME/.zshrc"
 ALIAS_START="# >>> NetBeans 8.2 Apple Silicon >>>"
 ALIAS_END="# <<< NetBeans 8.2 Apple Silicon <<<"
@@ -67,12 +71,13 @@ descargar() {
   info "Descarga verificada (SHA-256 correcto)."
 }
 
-es_jdk8_arm64() {
-  # Devuelve 0 si la carpeta Home dada es un JDK 8 (no JRE) nativo ARM64.
+es_jdk8_fx_arm64() {
+  # Devuelve 0 si la carpeta Home dada es un JDK 8 (no JRE) nativo ARM64 con JavaFX.
   local home="$1"
   [ -x "$home/bin/java" ] && [ -x "$home/bin/javac" ] || return 1
   grep -q '^JAVA_VERSION="1\.8' "$home/release" 2>/dev/null || return 1
   file "$home/bin/java" 2>/dev/null | grep -q 'arm64' || return 1
+  [ -f "$home/jre/lib/ext/jfxrt.jar" ] || return 1
 }
 
 buscar_jdk8() {
@@ -80,7 +85,7 @@ buscar_jdk8() {
   for home in "$ZULU_DIR/Contents/Home" \
               "$JVM_DIR"/*/Contents/Home \
               /Library/Java/JavaVirtualMachines/*/Contents/Home; do
-    if [ -d "$home" ] && es_jdk8_arm64 "$home"; then
+    if [ -d "$home" ] && es_jdk8_fx_arm64 "$home"; then
       printf '%s\n' "$home"
       return 0
     fi
@@ -135,11 +140,13 @@ if [ "$DESINSTALAR" = "1" ]; then
   if [ -d "$NB_DIR" ]; then rm -rf "$NB_DIR"; info "Quitado: $NB_DIR"; fi
   if [ -d "$APP_DIR" ]; then rm -rf "$APP_DIR"; info "Quitado: $APP_DIR"; fi
   quitar_alias && info "Quitado el alias nb82 de ~/.zshrc (si existía)."
-  if [ -f "$ZULU_MARK" ]; then
-    rm -rf "$ZULU_DIR"; info "Quitado el JDK 8 que instaló este script."
-  else
-    info "El JDK 8 no se tocó (no lo instaló este script)."
-  fi
+  JDK_QUITADO=0
+  for dir in "$ZULU_DIR" "$ZULU_DIR_VIEJO"; do
+    if [ -f "$dir/$MARCA" ]; then
+      rm -rf "$dir"; info "Quitado el JDK 8 que instaló este script: $dir"; JDK_QUITADO=1
+    fi
+  done
+  [ "$JDK_QUITADO" = "1" ] || info "El JDK 8 no se tocó (no lo instaló este script)."
   info "Tus proyectos (~/NetBeansProjects) y tu configuración no se borraron."
   printf '\n%sListo.%s\n' "$VERDE" "$NORMAL"
   exit 0
@@ -149,11 +156,11 @@ TMP_DIR="$(mktemp -d)"
 
 # --- 1. JDK 8 nativo ARM64 ----------------------------------------------------
 
-paso "1/4  Buscando un JDK 8 nativo para Apple Silicon"
+paso "1/4  Buscando un JDK 8 nativo para Apple Silicon con JavaFX"
 if JDK_HOME="$(buscar_jdk8)"; then
   info "Encontrado: $JDK_HOME"
 else
-  info "No hay ninguno. Descargando Azul Zulu JDK 8 (ARM64, ~100 MB)..."
+  info "No hay ninguno con JavaFX. Descargando Azul Zulu JDK 8 + JavaFX (ARM64, ~160 MB)..."
   descargar "$ZULU_URL" "$TMP_DIR/zulu.tar.gz" "$ZULU_SHA256"
   tar -xzf "$TMP_DIR/zulu.tar.gz" -C "$TMP_DIR"
   EXTRAIDO="$(find "$TMP_DIR" -maxdepth 1 -type d -name 'zulu8*macosx_aarch64' | head -n 1)"
@@ -165,8 +172,12 @@ else
   touch "$ZULU_MARK"
   xattr -dr com.apple.quarantine "$ZULU_DIR" 2>/dev/null || true
   JDK_HOME="$ZULU_DIR/Contents/Home"
-  es_jdk8_arm64 "$JDK_HOME" || error "El JDK instalado no pasó la verificación ARM64."
+  es_jdk8_fx_arm64 "$JDK_HOME" || error "El JDK instalado no pasó la verificación (ARM64 + JavaFX)."
   info "Instalado en: $ZULU_DIR"
+  if [ -f "$ZULU_DIR_VIEJO/$MARCA" ]; then
+    rm -rf "$ZULU_DIR_VIEJO"
+    info "Quitado el JDK 8 sin JavaFX que instaló una versión anterior de este script."
+  fi
 fi
 
 # --- 2. NetBeans 8.2 ----------------------------------------------------------
@@ -246,6 +257,11 @@ info "Acceso directo: $APP_DIR (búscalo en Spotlight como \"NetBeans 8.2\")"
 quitar_alias
 if grep -qE "^[[:space:]]*alias nb82=" "$ZSHRC" 2>/dev/null; then
   info "Ya tenías un alias nb82 propio en ~/.zshrc; no se modificó."
+  if grep -E "^[[:space:]]*alias nb82=" "$ZSHRC" | grep -q -- "--jdkhome"; then
+    aviso "Tu alias nb82 trae --jdkhome, y eso ignora la configuración de este script."
+    info "Para que use el JDK con JavaFX, cambia la línea del alias en ~/.zshrc por:"
+    info "alias nb82='\"$NB_DIR/bin/netbeans\"'"
+  fi
 else
   {
     printf '%s\n' "$ALIAS_START"
@@ -257,7 +273,7 @@ fi
 
 # --- Listo --------------------------------------------------------------------
 
-printf '\n%s✔ NetBeans 8.2 quedó instalado y corriendo nativo en ARM64.%s\n\n' "$VERDE" "$NORMAL"
+printf '\n%s✔ NetBeans 8.2 quedó instalado, con JavaFX y corriendo nativo en ARM64.%s\n\n' "$VERDE" "$NORMAL"
 info "Ábrelo con Spotlight (Cmd+Espacio → \"NetBeans 8.2\") o escribiendo nb82 en la Terminal."
 info "La primera vez tarda un poco en abrir mientras crea su configuración."
 info "Comprueba que es nativo con:  file \"$JDK_HOME/bin/java\"   (debe decir arm64)"

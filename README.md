@@ -1,6 +1,6 @@
 # NetBeans 8.2 para Apple Silicon
 
-Script de un solo comando para instalar **NetBeans IDE 8.2** en Mac con Apple Silicon (M1, M2, M3, M4). Corre **100% nativo en ARM64, sin Rosetta**, usando Azul Zulu JDK 8. Pensado para escuelas y cursos que todavía piden NetBeans 8.2.
+Script de un solo comando para instalar **NetBeans IDE 8.2** en Mac con Apple Silicon (M1, M2, M3, M4). Corre **100% nativo en ARM64, sin Rosetta**, usando Azul Zulu JDK 8 **con JavaFX incluido**. Pensado para escuelas y cursos que todavía piden NetBeans 8.2.
 
 ## ¿Por qué existe esto?
 
@@ -9,7 +9,7 @@ NetBeans 8.2 salió en 2016, cuatro años antes del primer chip Apple Silicon. N
 Pero NetBeans está hecho en Java, así que no depende del procesador: lo que depende del procesador es el **JDK** que lo ejecuta. Este script junta las dos piezas correctas:
 
 - el **ZIP original de NetBeans 8.2** (la versión "platform independent", puro Java), y
-- un **JDK 8 compilado para ARM64** (Azul Zulu),
+- un **JDK 8 compilado para ARM64 con JavaFX** (Azul Zulu FX),
 
 y las configura para que funcionen juntas. El resultado es el mismo NetBeans 8.2 que usan en el salón (build `201609300101`), corriendo nativo en tu chip.
 
@@ -21,7 +21,7 @@ Abre la **Terminal** y pega esto:
 curl -fsSL https://raw.githubusercontent.com/Cookles-lsi/NetBeans-8.2-Apple-Silicon/main/instalar.sh | bash
 ```
 
-Tarda unos minutos (descarga unos 290 MB). No pide contraseña: todo se instala dentro de tu usuario.
+Tarda unos minutos (descarga unos 350 MB). No pide contraseña: todo se instala dentro de tu usuario.
 
 Cuando termine, ábrelo de cualquiera de estas formas:
 
@@ -32,7 +32,7 @@ La primera vez tarda un poco en abrir porque crea su configuración.
 
 ## Qué hace el script
 
-1. Busca si ya tienes un JDK 8 nativo ARM64. Si no, descarga Azul Zulu JDK 8 y lo pone en `~/Library/Java/JavaVirtualMachines/zulu-8.jdk`.
+1. Busca si ya tienes un JDK 8 nativo ARM64 **con JavaFX**. Si no, descarga Azul Zulu JDK 8 FX y lo pone en `~/Library/Java/JavaVirtualMachines/zulu-8-fx.jdk`.
 2. Descarga el ZIP original de NetBeans 8.2 y lo instala en `~/Applications/netbeans-8.2`.
 3. Configura `etc/netbeans.conf` para que NetBeans use ese JDK 8 (con Java 9 o más nuevo, NetBeans 8.2 no arranca).
 4. Crea el acceso directo `~/Applications/NetBeans 8.2.app` y el comando `nb82`.
@@ -44,7 +44,7 @@ Puedes correrlo las veces que quieras. Si NetBeans ya está instalado, no lo vue
 ## Comprobar que corre nativo
 
 ```bash
-file ~/Library/Java/JavaVirtualMachines/zulu-8.jdk/Contents/Home/bin/java
+file ~/Library/Java/JavaVirtualMachines/zulu-8-fx.jdk/Contents/Home/bin/java
 ```
 
 Debe decir `Mach-O 64-bit executable arm64`. También puedes abrir **Monitor de Actividad**, buscar el proceso `java` con NetBeans abierto y ver que en la columna **Tipo** diga **Apple** (no Intel).
@@ -75,6 +75,15 @@ No necesitas Homebrew ni Rosetta.
 
 ## Preguntas frecuentes
 
+**¿Funciona JavaFX?**
+Sí. El JDK que instala el script trae JavaFX (`jfxrt.jar` y sus librerías gráficas nativas ARM64), y NetBeans 8.2 incluye las plantillas de proyecto JavaFX (**File → New Project → JavaFX**). Si ya habías instalado con una versión anterior del script, o tu JDK 8 no traía JavaFX, vuelve a correr el comando de instalación: detecta que falta y lo agrega sin tocar tus proyectos.
+
+Para comprobarlo:
+
+```bash
+ls ~/Library/Java/JavaVirtualMachines/zulu-8-fx.jdk/Contents/Home/jre/lib/ext/jfxrt.jar
+```
+
 **Me sale "An instance of the program seems to be already running with your user directory".**
 NetBeans se cerró de golpe la última vez y dejó un archivo de candado. Si no tienes otro NetBeans abierto, dale **OK** y abre normal.
 
@@ -104,7 +113,7 @@ Casi siempre es porque está usando un Java más nuevo que el 8 (por ejemplo, el
 | Componente | Origen | Licencia |
 |---|---|---|
 | NetBeans IDE 8.2 | ZIP original en el CDN heredado de Oracle (`dlc-cdn.sun.com`) | CDDL / GPL v2 con excepción de classpath |
-| Azul Zulu JDK 8 | CDN oficial de Azul (`cdn.azul.com`) | GPL v2 con excepción de classpath |
+| Azul Zulu JDK 8 FX (incluye OpenJFX) | CDN oficial de Azul (`cdn.azul.com`) | GPL v2 con excepción de classpath |
 | Este script | Este repositorio | [MIT](LICENSE) |
 
 Este repositorio **no incluye** NetBeans ni el JDK: el script los descarga directamente de sus fuentes originales.
