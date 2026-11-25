@@ -36,10 +36,33 @@ La primera vez tarda un poco en abrir porque crea su configuración.
 2. Descarga el ZIP original de NetBeans 8.2 y lo instala en `~/Applications/netbeans-8.2`.
 3. Configura `etc/netbeans.conf` para que NetBeans use ese JDK 8 (con Java 9 o más nuevo, NetBeans 8.2 no arranca).
 4. Crea el acceso directo `~/Applications/NetBeans 8.2.app` y el comando `nb82`.
+5. Le pone a NetBeans un icono al estilo de macOS que cambia solo con el aspecto del Mac (ver abajo).
 
 Las dos descargas se verifican con SHA-256: si el archivo no es idéntico al original, el script se detiene sin instalar nada.
 
 Puedes correrlo las veces que quieras. Si NetBeans ya está instalado, no lo vuelve a descargar: solo revisa que la configuración esté bien.
+
+## Icono que combina con tu Mac
+
+![El icono de NetBeans en los estilos de macOS: por omisión, transparente y tintado, en claro y oscuro](docs/iconos.png)
+
+El icono original de NetBeans 8.2 es de 2016 y en macOS actual se ve fuera de lugar. El script dibuja el cubo de NetBeans al estilo *Liquid Glass* y **lo cambia solo** cuando cambias el aspecto en **Ajustes del Sistema → Apariencia**:
+
+- **Por omisión, Transparente o Tintado**, cada uno en claro y oscuro.
+- El tintado usa tu **color de acento**.
+- Si también tienes **Apache NetBeans**, usa el mismo icono en el Dock.
+
+Cómo funciona: un agente de `launchd` vigila tus preferencias y, cuando cambia el aspecto, genera el icono con herramientas que ya trae macOS (JavaScript for Automation, `sips` e `iconutil`). No necesitas Xcode ni Homebrew. El icono del Dock se pasa a NetBeans con `-Xdock:icon` desde `~/Library/Application Support/NetBeans/<versión>/etc/netbeans.conf`, así que no se modifica ningún archivo de NetBeans.
+
+Si NetBeans está abierto cuando cambias el aspecto, el icono del Dock se actualiza la próxima vez que lo abras.
+
+¿Ya lo tenías instalado? Agrega solo el icono con:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Cookles-lsi/NetBeans-8.2-Apple-Silicon/main/instalar.sh | bash -s -- --solo-icono
+```
+
+¿Prefieres el icono original? Usa `--sin-icono`.
 
 ## Comprobar que corre nativo
 
@@ -54,7 +77,9 @@ Debe decir `Mach-O 64-bit executable arm64`. También puedes abrir **Monitor de 
 | Opción | Qué hace |
 |---|---|
 | `--reinstalar` | Vuelve a descargar NetBeans desde cero. La carpeta anterior se guarda como respaldo. |
-| `--desinstalar` | Quita NetBeans 8.2, el acceso directo y el comando `nb82`. |
+| `--solo-icono` | Solo instala o actualiza el icono que cambia con el aspecto de macOS. |
+| `--sin-icono` | Instala sin el icono adaptable (deja el icono original de NetBeans). |
+| `--desinstalar` | Quita NetBeans 8.2, el acceso directo, el comando `nb82` y el icono adaptable. |
 | `--ayuda` | Muestra la ayuda. |
 
 Con `curl`, las opciones se pasan así:
